@@ -1,0 +1,15 @@
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\bin\Debug\net10.0\hw1_reverse.exe
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\bin\Debug\net10.0\hw1_reverse.deps.json
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\bin\Debug\net10.0\hw1_reverse.runtimeconfig.json
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\bin\Debug\net10.0\hw1_reverse.dll
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\bin\Debug\net10.0\hw1_reverse.pdb
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\obj\Debug\net10.0\hw1_reverse.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\obj\Debug\net10.0\hw1_reverse.AssemblyInfoInputs.cache
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\obj\Debug\net10.0\hw1_reverse.AssemblyInfo.cs
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\obj\Debug\net10.0\hw1_reverse.csproj.CoreCompileInputs.cache
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\obj\Debug\net10.0\hw1_reverse.sourcelink.json
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\obj\Debug\net10.0\hw1_reverse.dll
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\obj\Debug\net10.0\refint\hw1_reverse.dll
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\obj\Debug\net10.0\hw1_reverse.pdb
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\obj\Debug\net10.0\hw1_reverse.genruntimeconfig.cache
+C:\Users\vikto\Desktop\dotnet\hw1_reverse\obj\Debug\net10.0\ref\hw1_reverse.dll
