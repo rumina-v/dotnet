@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="UserRegistration.Api/UserRegistration.Api.csproj" />
+  <Project Path="UserRegistration.Console/UserRegistration.Console.csproj" />
+</Solution>
