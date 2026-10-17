@@ -35,6 +35,11 @@ builder.Services.AddSingleton(_ =>
 });
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddHttpClient<ApprovalServiceClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Services:Approvals:BaseUrl"] ?? "http://localhost:5157/");
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

@@ -19,6 +19,25 @@ services:
       timeout: 5s
       retries: 12
 
+  approvals-postgres:
+    profiles: [microservices]
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: approvals
+      POSTGRES_USER: approvals
+      POSTGRES_PASSWORD_FILE: /run/secrets/approvals_password
+    ports:
+      - "127.0.0.1:${APPROVALS_POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - approvals_data:/var/lib/postgresql/data
+    secrets:
+      - approvals_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U approvals -d approvals"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   opensearch:
     profiles: [observability]
     image: public.ecr.aws/opensearchproject/opensearch:3.9.0
@@ -87,8 +106,11 @@ services:
 secrets:
   postgres_password:
     file: ./local/postgres_password.txt
+  approvals_password:
+    file: ./local/approvals_password.txt
 
 volumes:
   postgres_data:
+  approvals_data:
   opensearch_data:
   fluent_bit_state:

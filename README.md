@@ -309,3 +309,138 @@ Volumes сохраняют индекс, настройки дашборда и 
 Скрипт запуска можно выполнить снова. Использованы
 [официальные Docker-образы OpenSearch](https://docs.opensearch.org/latest/install-and-configure/install-opensearch/docker/)
 и [вывод Fluent Bit в OpenSearch](https://docs.fluentbit.io/manual/data-pipeline/outputs/opensearch).
+
+## ДЗ №4 — микросервис согласования заявок
+
+Требование: добавить один или несколько микросервисов и подключить к приложению.
+Выбран сервис согласования заявок `hw4_microservices/Approvals.Api/`.
+Он запускается отдельным процессом, имеет собственную PostgreSQL и не обращается
+к таблицам пользователей. Основное приложение проверяет существование пользователя
+при создании заявки и обращается к микросервису по HTTP через
+`Services/ApprovalServiceClient.cs` и `IHttpClientFactory`.
+
+```mermaid
+flowchart LR
+    Client[HTTP-клиент] --> Users[Основное API :5147]
+    Users --> UserDb[(БД пользователей :5433)]
+    Users -->|HTTP /api/requests| Approvals[Микросервис заявок :5157]
+    Approvals --> ApprovalsDb[(БД заявок :5434)]
+```
+
+Слои микросервиса: `Controllers` — HTTP, `Services` — создание и принятие решений,
+`Data` — параметризованные асинхронные SQL-запросы, `Models` — контракты.
+Проекты не ссылаются на сборки друг друга. БД, пароль и Docker volume микросервиса
+отдельные от регистрации пользователей. Заголовок и описание заявки не пишутся в логи.
+
+### Запуск
+
+Нужны тот же .NET SDK для `net10.0` и Docker Desktop. В первом терминале:
+
+```powershell
+.\Start-Approvals.ps1
+```
+
+Скрипт создаёт случайный пароль в игнорируемом `local/approvals_password.txt`,
+поднимает только `approvals-postgres` и запускает сервис на `http://localhost:5157`.
+Строка соединения передаётся через `ConnectionStrings__Approvals` и не выводится.
+Настройки окружения восстанавливаются при завершении скрипта.
+В отдельном терминале:
+
+```powershell
+.\Start-Postgres.ps1
+.\Start-Api.ps1
+```
+
+Если API уже запущено со старой сборкой, остановите его через `Ctrl+C` и запустите
+повторно. Сервис заявок запускается независимо; его остановка не мешает операциям
+с пользователями. OpenSearch для этого ДЗ запускать не требуется.
+
+Другие порты: `Start-Approvals.ps1 -DatabasePort 5435 -ApiPort 5158`, а перед
+запуском основного API задайте `$env:Services__Approvals__BaseUrl = 'http://localhost:5158/'`.
+По умолчанию адрес сервиса — `http://localhost:5157/`; таймаут HTTP-запроса — 5 секунд.
+В режиме Development у микросервиса доступен Swagger на `/swagger`.
+`GET http://localhost:5157/health` проверяет, что процесс отвечает.
+
+### Контракт и правила
+
+Ниже маршруты основного API (`http://localhost:5147`). Микросервис предоставляет
+те же маршруты на порту 5157, но существование пользователя проверяет основное API.
+
+| Запрос | Результат |
+| --- | --- |
+| `POST /api/requests` | `201`, новая заявка и `Location`; `400` — невалидные поля, `404` — пользователь не найден |
+| `GET /api/requests` | `200`, JSON-массив всех заявок |
+| `GET /api/requests?userId=1` | `200`, заявки выбранного пользователя; `400` — некорректный ID |
+| `GET /api/requests/{id}` | `200`, заявка; `404` — не найдена |
+| `PUT /api/requests/{id}/decision` | `200`, принятое решение; `400` — неверный статус, `404` — нет заявки, `409` — решение уже принято |
+
+При создании обязательны `userId > 0`, `title` (до 200 символов) и `description`
+(до 2000 символов). Пустые строки и строки из пробелов отклоняются. Крайние пробелы
+названия и описания удаляются. Идентификатор заявки — UUID. Новая заявка получает
+`status: "pending"`, дату `createdDate` в UTC и `decidedDate: null`.
+
+Решение: `{"status":"approved"}` или `{"status":"rejected"}` (регистр важен).
+Оно устанавливает `decidedDate` в UTC. Повторное решение, в том числе такое же,
+возвращает `409` без изменения даты. Проверка `status = 'pending'` выполняется
+атомарно в SQL: при одновременных решениях проходит только одно.
+
+При остановленном микросервисе, таймауте или ошибке его БД основное API возвращает
+для заявок `503` с общим ProblemDetails. Пароли и технические детали в ответ не
+попадают. Маршруты пользователей продолжают работать. Заявки сохраняются после
+перезапуска сервиса и БД благодаря отдельному Docker volume.
+
+Это учебный сценарий без ролей и токенов: `userId` передаётся явно, решение может
+принять вызывающий API клиент. Идентификатор пользователя в заявке — историческая
+ссылка; удаление пользователя не удаляет заявки. Проверки прав согласующего
+в этой домашней работе не требовались.
+
+### Демонстрация
+
+Создайте пользователя через существующий `POST /api/users` или возьмите его ID
+из `GET /api/users`, затем в третьем терминале замените `1` на этот ID:
+
+```powershell
+.\Demo-Approvals.ps1 -UserId 1
+```
+
+Скрипт создаёт две заявки, одну одобряет, другую отклоняет, проверяет `409`
+при повторном решении и выводит итоговый список. Демонстрационные заявки
+остаются в БД. Отдельные HTTP-запросы есть в
+`hw4_microservices/Approvals.Api/Approvals.Api.http`; замените в нём `userId` и `requestId`.
+
+Если пользователей ещё нет, этот пример создаст демонстрационного пользователя
+со случайным паролем и сразу выполнит сценарий:
+
+```powershell
+$registration = @{
+    login = 'approvals_' + [guid]::NewGuid().ToString('N').Substring(0, 12)
+    password = [guid]::NewGuid().ToString('N')
+    firstName = 'Demo'
+    lastName = 'User'
+}
+$user = Invoke-RestMethod http://localhost:5147/api/users -Method Post `
+    -ContentType 'application/json' -Body ($registration | ConvertTo-Json -Compress)
+$registration = $null
+.\Demo-Approvals.ps1 -UserId $user.id
+```
+
+Для проверки отказа остановите только терминал микросервиса через `Ctrl+C`:
+`GET http://localhost:5147/api/requests` получит `503`, а
+`GET http://localhost:5147/api/users` — `200`. Запустите `Start-Approvals.ps1` снова:
+заявки останутся, а основной API восстановит доступ без своего перезапуска.
+
+Сборка и состояние БД:
+
+```powershell
+dotnet build hw4_microservices/Approvals.Api/Approvals.Api.csproj
+dotnet build hw2_auth/UserRegistration.Api/UserRegistration.Api.csproj
+docker compose --profile microservices ps
+```
+
+Остановка: `Ctrl+C` в терминалах API, затем
+`docker compose --profile microservices stop approvals-postgres`.
+Пароль из `local/approvals_password.txt` нужно сохранять для повторного запуска
+с существующим volume. Исходный `.sln` и консольное приложение не менялись.
+
+Использованы [HTTP-клиенты ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-10.0)
+и [параметризованные запросы Npgsql](https://www.npgsql.org/doc/basic-usage.html).
