@@ -6,35 +6,15 @@ namespace UserRegistration.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController : ControllerBase
+public class AuthController(IUserService userService) : ControllerBase
 {
-    private readonly IUserService _userService;
-
-    public AuthController(IUserService userService)
-    {
-        _userService = userService;
-    }
-
     [HttpPost("login")]
-    public ActionResult<UserResponse> Login(
-        LoginRequest request)
+    public async Task<ActionResult<UserResponse>> Login(
+        LoginRequest request, CancellationToken cancellationToken)
     {
-        var user = _userService.Login(request);
-
-        if (user == null)
-        {
-            return Unauthorized(new
-            {
-                message = "Неверный логин или пароль"
-            });
-        }
-
-        return Ok(new UserResponse
-        {
-            Id = user.Id,
-            Login = user.Login,
-            FirstName = user.FirstName,
-            LastName = user.LastName
-        });
+        var user = await userService.LoginAsync(request, cancellationToken);
+        return user == null
+            ? Unauthorized(new { message = "Неверный логин или пароль" })
+            : Ok(UserResponse.FromUser(user));
     }
 }

@@ -1,0 +1,27 @@
+name: dotnet-users
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: user_registration
+      POSTGRES_USER: user_registration
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    secrets:
+      - postgres_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_registration -d user_registration"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+secrets:
+  postgres_password:
+    file: ./local/postgres_password.txt
+
+volumes:
+  postgres_data:
