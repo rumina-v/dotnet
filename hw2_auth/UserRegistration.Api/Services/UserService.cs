@@ -1,14 +1,15 @@
 using Microsoft.AspNetCore.Identity;
 using UserRegistration.Api.Data;
+using UserRegistration.Api.Logging;
 using UserRegistration.Api.Models;
 
 namespace UserRegistration.Api.Services;
 
-public class UserService(UserRepository repository) : IUserService
+public class UserService(UserRepository repository, ILogger<UserService> logger) : IUserService
 {
     private readonly PasswordHasher<User> _passwordHasher = new();
 
-    public Task<User?> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<User?> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
         var user = new User
         {
@@ -18,31 +19,79 @@ public class UserService(UserRepository repository) : IUserService
             CreatedDate = DateTime.UtcNow
         };
         user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
-        return repository.AddAsync(user, cancellationToken);
+        var createdUser = await repository.AddAsync(user, cancellationToken);
+        if (createdUser == null)
+        {
+            logger.LogWarning(LogEvents.DuplicateLogin, "Регистрация отклонена: логин уже занят.");
+        }
+        else
+        {
+            logger.LogInformation(LogEvents.UserCreated, "Создан пользователь {UserId}.", createdUser.Id);
+        }
+        return createdUser;
     }
 
     public async Task<User?> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         var user = await repository.FindByLoginAsync(request.Login.Trim(), cancellationToken);
-        if (user == null)
+        if (user != null &&
+            _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password)
+                != PasswordVerificationResult.Failed)
         {
-            return null;
+            logger.LogInformation(LogEvents.LoginSucceeded, "Выполнен вход пользователя {UserId}.", user.Id);
+            return user;
         }
 
-        var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
-        return result == PasswordVerificationResult.Failed ? null : user;
+        logger.LogWarning(LogEvents.LoginFailed, "Вход отклонён: неверный логин или пароль.");
+        return null;
     }
 
-    public Task<User?> GetByIdAsync(int id, CancellationToken cancellationToken) =>
-        repository.GetByIdAsync(id, cancellationToken);
+    public async Task<User?> GetByIdAsync(int id, CancellationToken cancellationToken)
+    {
+        var user = await repository.GetByIdAsync(id, cancellationToken);
+        if (user == null)
+        {
+            logger.LogWarning(LogEvents.UserNotFound,
+                "Пользователь {UserId} не найден. Операция: {Operation}.", id, "read");
+        }
+        return user;
+    }
 
-    public Task<List<User>> GetAllAsync(UsersQuery query, CancellationToken cancellationToken) =>
-        repository.GetAllAsync(query, cancellationToken);
+    public async Task<List<User>> GetAllAsync(UsersQuery query, CancellationToken cancellationToken)
+    {
+        var users = await repository.GetAllAsync(query, cancellationToken);
+        logger.LogInformation(LogEvents.UsersListed, "Получен список пользователей: {UserCount}.", users.Count);
+        return users;
+    }
 
-    public Task<bool> UpdateAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken) =>
-        repository.UpdateAsync(
+    public async Task<bool> UpdateAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken)
+    {
+        var updated = await repository.UpdateAsync(
             id, request.FirstName.Trim(), request.LastName.Trim(), DateTime.UtcNow, cancellationToken);
+        if (updated)
+        {
+            logger.LogInformation(LogEvents.UserUpdated, "Изменён пользователь {UserId}.", id);
+        }
+        else
+        {
+            logger.LogWarning(LogEvents.UserNotFound,
+                "Пользователь {UserId} не найден. Операция: {Operation}.", id, "update");
+        }
+        return updated;
+    }
 
-    public Task<bool> DeleteAsync(int id, CancellationToken cancellationToken) =>
-        repository.DeleteAsync(id, cancellationToken);
+    public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken)
+    {
+        var deleted = await repository.DeleteAsync(id, cancellationToken);
+        if (deleted)
+        {
+            logger.LogInformation(LogEvents.UserDeleted, "Удалён пользователь {UserId}.", id);
+        }
+        else
+        {
+            logger.LogWarning(LogEvents.UserNotFound,
+                "Пользователь {UserId} не найден. Операция: {Operation}.", id, "delete");
+        }
+        return deleted;
+    }
 }
