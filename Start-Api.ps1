@@ -13,7 +13,6 @@ New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 $logPath = Join-Path $logDirectory 'api.jsonl'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 
-# Пароль остаётся в памяти процесса; файл в local/ исключён из Git.
 $previousConnection = $env:ConnectionStrings__Users
 try {
     $password = [IO.File]::ReadAllText($secretPath).Trim()

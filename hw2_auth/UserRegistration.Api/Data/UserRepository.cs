@@ -46,7 +46,6 @@ public class UserRepository(NpgsqlDataSource dataSource)
 
     public async Task<List<User>> GetAllAsync(UsersQuery query, CancellationToken cancellationToken)
     {
-        // Имя столбца выбирается только из двух констант, значения передаются параметрами.
         var dateColumn = query.DateField.Equals("updatedDate", StringComparison.OrdinalIgnoreCase)
             ? "updated_date"
             : "created_date";

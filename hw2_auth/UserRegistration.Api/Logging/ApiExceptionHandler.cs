@@ -9,7 +9,6 @@ public class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : IExcepti
         HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
         var traceId = Activity.Current?.Id ?? httpContext.TraceIdentifier;
-        // Текст исключения может содержать входные данные или секреты подключения.
         logger.LogError(LogEvents.RequestFailed,
             "Не удалось обработать запрос. Тип ошибки: {ExceptionType}. TraceId: {TraceId}.",
             exception.GetType().Name, traceId);

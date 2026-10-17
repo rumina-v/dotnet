@@ -1,0 +1,38 @@
+@api = http://localhost:5147
+@service = http://localhost:5157
+@userId = 1
+@requestId = 00000000-0000-0000-0000-000000000000
+
+###
+GET {{service}}/health
+
+###
+POST {{api}}/api/requests
+Content-Type: application/json
+
+{
+  "userId": {{userId}},
+  "title": "Access request",
+  "description": "Please approve access to the study materials."
+}
+
+###
+GET {{api}}/api/requests?userId={{userId}}
+
+###
+GET {{api}}/api/requests/{{requestId}}
+
+###
+PUT {{api}}/api/requests/{{requestId}}/decision
+Content-Type: application/json
+
+{ "status": "approved" }
+
+###
+PUT {{api}}/api/requests/{{requestId}}/decision
+Content-Type: application/json
+
+{ "status": "rejected" }
+
+###
+GET {{service}}/api/requests/{{requestId}}

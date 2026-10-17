@@ -1,14 +1,12 @@
 @UserRegistration.Api_HostAddress = http://localhost:5147
 
-# Запустите Start-Postgres.ps1 и Start-Api.ps1 из корня репозитория.
-# Замените заполнители тестовым паролем и ID из ответа регистрации.
 @login = student
 @password = <тестовый пароль>
 @userId = 1
 @createdDate = <createdDate из ответа>
 @updatedDate = <updatedDate после редактирования>
 
-### Создание: 201. Повтор того же логина: 409.
+###
 POST {{UserRegistration.Api_HostAddress}}/api/users
 Content-Type: application/json
 
@@ -19,7 +17,7 @@ Content-Type: application/json
   "lastName": "Иванова"
 }
 
-### Пустой логин: 400.
+###
 POST {{UserRegistration.Api_HostAddress}}/api/users
 Content-Type: application/json
 
@@ -28,7 +26,7 @@ Content-Type: application/json
   "password": "{{password}}"
 }
 
-### Правильный пароль: 200.
+###
 POST {{UserRegistration.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
 
@@ -37,7 +35,7 @@ Content-Type: application/json
   "password": "{{password}}"
 }
 
-### Неправильный пароль: 401.
+###
 POST {{UserRegistration.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
 
@@ -46,22 +44,22 @@ Content-Type: application/json
   "password": "<другой тестовый пароль>"
 }
 
-### Все пользователи: 200, JSON-массив.
+###
 GET {{UserRegistration.Api_HostAddress}}/api/users
 
-### По ID: 200. Скопируйте createdDate для следующего запроса.
+###
 GET {{UserRegistration.Api_HostAddress}}/api/users/{{userId}}
 
-### Обе границы включены: 200, пользователь с указанным createdDate.
+###
 GET {{UserRegistration.Api_HostAddress}}/api/users?dateField=createdDate&from={{createdDate}}&to={{createdDate}}
 
-### Некорректный период: 400.
+###
 GET {{UserRegistration.Api_HostAddress}}/api/users?from=2026-12-01T00:00:00Z&to=2026-01-01T00:00:00Z
 
-### Некорректная дата: 400.
+###
 GET {{UserRegistration.Api_HostAddress}}/api/users?from=not-a-date
 
-### Изменение: 204. Повторите GET по ID и скопируйте updatedDate.
+###
 PUT {{UserRegistration.Api_HostAddress}}/api/users/{{userId}}
 Content-Type: application/json
 
@@ -70,13 +68,13 @@ Content-Type: application/json
   "lastName": "Петрова"
 }
 
-### По updatedDate: 200. Неизменённые пользователи с null сюда не попадают.
+###
 GET {{UserRegistration.Api_HostAddress}}/api/users?dateField=updatedDate&from={{updatedDate}}&to={{updatedDate}}
 
-### Неположительный ID: 400.
+###
 GET {{UserRegistration.Api_HostAddress}}/api/users/0
 
-### Удаление: 204. Повторное удаление или GET по этому ID: 404.
+###
 DELETE {{UserRegistration.Api_HostAddress}}/api/users/{{userId}}
 
 ###
