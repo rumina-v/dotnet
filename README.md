@@ -219,7 +219,93 @@ $env:Logging__LogLevel__Default = 'Warning'
    Ошибку запуска 3002 можно проверить, указав заведомо неиспользуемый порт БД,
    например `Start-Api.ps1 -DatabasePort 65432`; после проверки верните порт 5433.
 
-Бонус с Kibana/OpenSearch Dashboards не выбран; обязательные события
-просматриваются в консоли без дополнительных сервисов.
 Настройка соответствует [JSON-форматированию логов .NET](https://learn.microsoft.com/en-us/dotnet/core/extensions/logging/console-log-formatter)
 и [обработчикам исключений ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-10.0).
+
+## Бонус — графики в OpenSearch Dashboards
+
+Цепочка доставки: `API → local/logs/api.jsonl → Fluent Bit → OpenSearch → Dashboards`.
+`Start-Api.ps1` выводит сообщения в консоль и дописывает корректные JSON-записи
+в UTF-8-файл. Сообщения сборки в этот файл не попадают. Каталог `local/`
+исключён из Git. Fluent Bit читает новые строки и автоматически отправляет их
+в индекс `user-registration-logs`; позиция чтения и очередь хранятся в volume.
+
+В профиль Compose `observability` входят OpenSearch 3.9.0, Dashboards той же
+версии и Fluent Bit 5.1.4. Обычный запуск PostgreSQL не запускает эти сервисы.
+Для Docker рекомендуется не менее 4 ГБ памяти; для работы вместе с PostgreSQL
+и другими контейнерами требуется дополнительный запас.
+Это локальный учебный стенд без авторизации: порты 9200 и 5601 опубликованы
+только на `127.0.0.1`.
+
+### Запуск и демонстрация
+
+Из корня репозитория:
+
+```powershell
+.\Start-Postgres.ps1
+.\Start-Observability.ps1
+.\Start-Api.ps1
+```
+
+Первый запуск загружает крупные образы. `Start-Observability.ps1` ожидает
+готовности сервисов, создаёт шаблон индекса, подключает поле `Timestamp`
+как дату, загружает три визуализации и общий дашборд, затем запускает доставку.
+Повторный запуск обновляет эти учебные визуализации с сохранением самих логов.
+
+Откройте [дашборд регистрации пользователей](http://localhost:5601/app/dashboards#/view/users-api-dashboard).
+На нём расположены:
+
+- количество событий по времени с разбивкой по уровням;
+- распределение `Information`, `Warning`, `Error`;
+- количество неудачных входов по времени (`EventId = 2002`).
+
+Скриншоты результатов демонстрации:
+
+![События API по времени](observability/1.png)
+
+![Уровни логирования и неудачные входы](observability/2.png)
+
+В другом окне PowerShell запустите:
+
+```powershell
+.\Demo-Logs.ps1
+```
+
+Скрипт создаёт временного пользователя, выполняет успешные операции,
+дубликат регистрации, три неудачных входа и невалидный запрос, затем удаляет
+пользователя. Тестовый пароль генерируется в памяти и не выводится.
+События остаются в журнале для графиков. Обновление дашборда — каждые 5 секунд,
+интервал по умолчанию — последний час; его можно изменить вверху страницы.
+
+Чтобы дополнительно показать `Error` 3001, можно выполнить:
+
+```powershell
+.\Demo-Logs.ps1 -IncludeDatabaseError
+```
+
+Этот вариант кратко останавливает только PostgreSQL данного ДЗ, запрашивает
+список пользователей и запускает БД обратно в блоке `finally`.
+
+### Проверка и остановка
+
+```powershell
+docker compose --profile observability ps
+docker compose logs --tail 30 fluent-bit
+Invoke-RestMethod http://localhost:9200/user-registration-logs/_count
+```
+
+Число документов увеличивается после новых операций API. В Dashboards → Discover
+можно посмотреть отдельные сообщения и фильтровать по `LogLevel`, `EventId`,
+`State.UserId`, `State.TraceId`. Описания визуализаций сохранены в
+`observability/dashboards.ndjson`, схема индекса — в `observability/index-template.json`.
+
+Для остановки API нажмите `Ctrl+C`, для остановки сервисов бонуса:
+
+```powershell
+docker compose --profile observability stop fluent-bit dashboards opensearch
+```
+
+Volumes сохраняют индекс, настройки дашборда и состояние доставки.
+Скрипт запуска можно выполнить снова. Использованы
+[официальные Docker-образы OpenSearch](https://docs.opensearch.org/latest/install-and-configure/install-opensearch/docker/)
+и [вывод Fluent Bit в OpenSearch](https://docs.fluentbit.io/manual/data-pipeline/outputs/opensearch).
