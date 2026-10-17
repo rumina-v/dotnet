@@ -1,0 +1,29 @@
+{
+  "index_patterns": ["user-registration-logs*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "1s"
+    },
+    "mappings": {
+      "properties": {
+        "Timestamp": { "type": "date" },
+        "LogLevel": { "type": "keyword" },
+        "EventId": { "type": "integer" },
+        "Category": { "type": "keyword" },
+        "Message": { "type": "text" },
+        "State": {
+          "properties": {
+            "UserId": { "type": "integer" },
+            "UserCount": { "type": "integer" },
+            "ErrorCount": { "type": "integer" },
+            "Operation": { "type": "keyword" },
+            "ExceptionType": { "type": "keyword" },
+            "TraceId": { "type": "keyword" }
+          }
+        }
+      }
+    }
+  }
+}
