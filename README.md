@@ -23,7 +23,7 @@ dotnet build hw2_auth/UserRegistration.Api/UserRegistration.Api.csproj
 dotnet build hw2_auth/UserRegistration.Console/UserRegistration.Console.csproj
 ```
 
-Исходный файл решения сохранён; команды выше собирают проекты напрямую.
+команды выше собирают проекты напрямую.
 
 ```powershell
 .\Start-Postgres.ps1
